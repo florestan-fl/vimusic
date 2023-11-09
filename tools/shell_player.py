@@ -4,6 +4,7 @@
 import os
 import sys
 import signal
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame.mixer as mixer
 from pygame.locals import *
 

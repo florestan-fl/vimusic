@@ -16,14 +16,9 @@ try:
             path = "file://"+path
     else:
         path = urlparse(path).geturl()
-    exe_path = os.sep.join(path.split(os.sep)[0:-2] +
-                           [".vim", "bundle", "vimusic", "tools", "shell_player.py"]
-                           )
     if (not path.endswith('.mp3')) and (not path.endswith('.ogg')):
         exit()
     player.play(path)
-
-
 
 except Exception as e:
     print(e)
@@ -31,31 +26,25 @@ except Exception as e:
 EOF
 endfunction
 
-command! -complete=file -nargs=1 VimPlay :call vimusic#Play(<q-args>)
-
 function! vimusic#Stop()
-    python << EOF
+    python3 << EOF
 
 import vim
 import os
+sys.path.append('/home/florestan/.vim/bundle/vimusic')
+import tools.shell_player as player
 
 try:
-    readme = vim.eval("a:path")
-    exe_path = os.sep.join( readme.split(os.sep)[0:-2] +
-                            [".vim", "bundle", "vimusic", "tools", "shell_player.py"]
-                           )
-    repro = "shell_player.py"
-    os.system("""ps -Af | grep __vimusic__ | grep %s | grep -v grep | awk '{print $2}' | xargs kill > /dev/null 2> /dev/null """%( str(os.getpid()) ))
-    os.system("""ps -Af | grep """ + repro + """ | grep pid_%s | grep -v grep | awk '{print $2}' | xargs kill > /dev/null 2> /dev/null """%( str(os.getpid()) ))
-    os.system("""ls /tmp/*%s* 2> /dev/null | xargs rm > /dev/null 2> /dev/null """%( str(os.getpid()) ))
-    print "stopped..."
+    player.stop()
+
 except Exception as e:
-    print e
+    print(e)
 
 EOF
 endfunction
 
-command! -nargs=0 Vstop    :call vimusic#Stop()
+command! -nargs=0 VimStop :call vimusic#Stop()
+command! -complete=file -nargs=1 VimPlay :call vimusic#Play(<q-args>)
 
 function! vimusic#Skip()
     python << EOF
