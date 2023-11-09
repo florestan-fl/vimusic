@@ -31,7 +31,7 @@ except Exception as e:
 EOF
 endfunction
 
-command! -complete=file -nargs=1 VimPlay :call vimusicr#Play(<q-args>)
+command! -complete=file -nargs=1 VimPlay :call vimusic#Play(<q-args>)
 
 function! vimusic#Stop()
     python << EOF

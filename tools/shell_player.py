@@ -4,15 +4,17 @@
 import os
 import sys
 import signal
-import music
+import pygame.mixer as mixer
+from pygame.locals import *
 
 def play(path):
     with open(os.path.expanduser('~') + '/logs.txt', 'a') as f:
         f.write('playing ' + path + '\n')
     try:
-        audio = music.load(path)
-        audio.play()
-        return audio
+        mixer.init()
+        mixer.music.load(path)
+        mixer.music.play()
+        return mixer.music
     except Exception as e:
         print("Error:", e)
         sys.exit(1)
@@ -20,25 +22,25 @@ def play(path):
 def stop(audio):
     if audio:
         audio.stop()
+        mixer.quit()
         sys.exit(0)
 
 def pause(audio):
     if audio:
-        audio.pause()
+        mixer.music.pause()
 
 def unpause(audio):
     if audio:
-        audio.unpause()
+        mixer.music.unpause()
 
 def swap_pause(audio):
     if audio:
-        if audio.is_playing():
-            pause_audio(audio)
+        if mixer.music.get_busy():
+            mixer.music.pause()
         else:
-            unpause_audio(audio)
+            mixer.music.unpause()
 
 if __name__ == "__main__":
-    
     args = sys.argv
 
     if len(args) < 2:
@@ -47,13 +49,13 @@ if __name__ == "__main__":
 
     path = args[1]
     print("Playing", path)
-    audio = play_audio(path)
+    audio = play(path)
 
     # Set up signal handlers
-    signal.signal(signal.SIGINT, lambda *_: stop_audio(audio))
-    signal.signal(signal.SIGBUS, lambda *_: pause_audio(audio))
-    signal.signal(signal.SIGURG, lambda *_: unpause_audio(audio))
-    signal.signal(signal.SIGALRM, lambda *_: swap_pause_audio(audio))
+    signal.signal(signal.SIGINT, lambda *_: stop(audio))
+    signal.signal(signal.SIGBUS, lambda *_: pause(audio))
+    signal.signal(signal.SIGURG, lambda *_: unpause(audio))
+    signal.signal(signal.SIGALRM, lambda *_: swap_pause(audio))
 
     # Keep the script running
     signal.pause()
