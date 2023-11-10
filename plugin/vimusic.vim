@@ -3,23 +3,33 @@ function! vimusic#Play(path)
 
 import vim
 import os
-from urllib.parse import urlparse
-sys.path.append('/home/florestan/.vim/bundle/vimusic')
-from tools.audio_manager import AudioManager
+import signal
 
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+import pygame.mixer as mixer
+
+pid_file_path = "/tmp/vimusic_pid.txt"
 try:
     path = vim.eval("a:path")
-    if not ("http://" in path or "https://" in path):
-        if not path.startswith(os.sep):
-            path = "."+os.sep+path
-            path = os.path.abspath(path)
-            path = "file://"+path
-    else:
-        path = urlparse(path).geturl()
-    if (not path.endswith('.mp3')) and (not path.endswith('.ogg')):
-        exit()
-    audio_manager = AudioManager()
-    audio_manager.play(path)
+    if not path.startswith(os.sep):
+        path = "."+os.sep+path
+        path = os.path.abspath(path)
+        path = "file://"+path
+    audio_extensions = [".mp3", ".ogg", ".wav", ".flac", ".aac"]    
+    if not any(path.lower().endswith(ext) for ext in audio_extensions):
+        raise ValueError("File format not handled. Extensions handled : " + str(audio_extensions))
+
+    mixer.init()
+    signal.signal(signal.SIGINT, lambda *_: mixer.stop())
+    signal.signal(signal.SIGBUS, lambda *_: mixer.pause())
+    signal.signal(signal.SIGURG, lambda *_: mixer.unpause())
+    with open(pid_file_path, "w") as pid_file:
+        pid_file.write(str(os.getpid()))
+
+    if not mixer:
+        mixer.init()
+    audio = mixer.Sound(path)
+    audio.play()
 
 except Exception as e:
     print(e)
@@ -27,10 +37,11 @@ except Exception as e:
 EOF
 endfunction
 
-command! -complete=file -nargs=1 VimPlay :call vimusic#Play(<q-args>)
+command! -complete=file -nargs=1 PlayVimusic :call vimusic#Play(<q-args>)
 
 function! vimusic#Stop()
     python3 << EOF
+
 import vim
 import os
 import signal
@@ -39,36 +50,88 @@ if os.path.exists(pid_file_path):
     with open(pid_file_path, "r") as pid_file:
         pid = int(pid_file.read())
     os.kill(pid, signal.SIGINT)
+    os.remove(pid_file_path)
 else:
     print("No PID file found. Is the music currently playing?")
 
 EOF
 endfunction
 
-command! -nargs=0 VimStop :call vimusic#Stop()
+command! -nargs=0 StopVimusic :call vimusic#Stop()
 
-function! vimusic#Skip()
-    python << EOF
+function! vimusic#Pause()
+    python3 << EOF
+
+import vim
+import os
+import signal
+pid_file_path = "/tmp/vimusic_pid.txt"
+if os.path.exists(pid_file_path):
+    with open(pid_file_path, "r") as pid_file:
+        pid = int(pid_file.read())
+    os.kill(pid, signal.SIGBUS)
+else:
+    print("No PID file found. Is the music currently playing?")
+
+EOF
+endfunction
+
+command! -nargs=0 PauseVimusic :call vimusic#Pause()
+
+function! vimusic#Unpause()
+    python3 << EOF
+
+import vim
+import os
+import signal
+pid_file_path = "/tmp/vimusic_pid.txt"
+if os.path.exists(pid_file_path):
+    with open(pid_file_path, "r") as pid_file:
+        pid = int(pid_file.read())
+    os.kill(pid, signal.SIGURG)
+else:
+    print("No PID file found. Is the music currently playing?")
+
+EOF
+endfunction
+
+command! -nargs=0 ResumeVimusic :call vimusic#Unpause()
+
+function! vimusic#SwapPause()
+    python3 << EOF
 
 import vim
 import os
 
 try:
-    readme = vim.eval("g:vundle_readme")
-    exe_path = os.sep.join( readme.split(os.sep)[0:-2] +
-                            ["vimusic", "tools", "shell_player.py"]
-                           )
-    repro = "shell_player.py" if os.path.exists(exe_path) else "gst-launch"
-    os.system("""ps -Af | grep """ + repro + """ | grep pid_%s | grep -v grep | awk '{print $2}' | xargs kill > /dev/null 2> /dev/null """%( str(os.getpid()) ))
-    print "skipped..."
+    os.system('''ps -Af | grep shell_player | grep pid_%s | grep -v grep | awk '{print $2}' | xargs kill -s SIGALRM '''%( str(os.getpid()) ))
 except Exception as e:
     print e
 
 EOF
 endfunction
 
+function! vimusic#Skip()
+    python3 << EOF
+
+# FIXME
+import vim
+import os
+import signal
+pid_file_path = "/tmp/vimusic_pid.txt"
+if os.path.exists(pid_file_path):
+    with open(pid_file_path, "r") as pid_file:
+        pid = int(pid_file.read())
+    os.kill(pid, signal.SIGINT)
+    os.remove(pid_file_path)
+else:
+    print("No PID file found. Is the music currently playing?")
+
+EOF
+endfunction
+
 function! vimusic#Playing()
-    python << EOF
+    python3 << EOF
 
 import vim
 import os
@@ -93,49 +156,6 @@ try:
             with open("/tmp/lnamef") as g:
                 data = g.read().replace("\n","").replace("\r","")
                 print 'Playing now:',data
-except Exception as e:
-    print e
-
-EOF
-endfunction
-
-
-function! vimusic#Pause()
-    python << EOF
-
-import vim
-import os
-
-try:
-    os.system('''ps -Af | grep shell_player | grep pid_%s | grep -v grep | awk '{print $2}' | xargs kill -s SIGBUS '''%( str(os.getpid()) ))
-except Exception as e:
-    print e
-
-EOF
-endfunction
-
-function! vimusic#Unpause()
-    python << EOF
-
-import vim
-import os
-
-try:
-    os.system('''ps -Af | grep shell_player | grep pid_%s | grep -v grep | awk '{print $2}' | xargs kill -s SIGURG '''%( str(os.getpid()) ))
-except Exception as e:
-    print e
-
-EOF
-endfunction
-
-function! vimusic#SwapPause()
-    python << EOF
-
-import vim
-import os
-
-try:
-    os.system('''ps -Af | grep shell_player | grep pid_%s | grep -v grep | awk '{print $2}' | xargs kill -s SIGALRM '''%( str(os.getpid()) ))
 except Exception as e:
     print e
 
