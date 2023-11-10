@@ -20,8 +20,6 @@ try:
         exit()
     audio_manager = AudioManager()
     audio_manager.play(path)
-    print(audio_manager, type(audio_manager))
-    vim.command("let s:audio_manager = '%s'"% audio_manager)
 
 except Exception as e:
     print(e)
@@ -32,25 +30,19 @@ endfunction
 command! -complete=file -nargs=1 VimPlay :call vimusic#Play(<q-args>)
 
 function! vimusic#Stop()
-if exists("s:audio_manager")
-        python3 << EOF
-
+    python3 << EOF
 import vim
 import os
-sys.path.append('/home/florestan/.vim/bundle/vimusic')
-from tools.audio_manager import AudioManager
+import signal
+pid_file_path = "/tmp/vimusic_pid.txt"
+if os.path.exists(pid_file_path):
+    with open(pid_file_path, "r") as pid_file:
+        pid = int(pid_file.read())
+    os.kill(pid, signal.SIGINT)
+else:
+    print("No PID file found. Is the music currently playing?")
 
-try:
-    audio_manager = vim.eval("s:audio_manager")
-    obj_audio_manager = eval(audio_manager)
-    print(obj_audio_manager, type(obj_audio_manager))
-    #audio_manager.stop()
-except Exception as e:
-    print(e)
 EOF
-else
-    echo "Music is not playing."
-endif
 endfunction
 
 command! -nargs=0 VimStop :call vimusic#Stop()
