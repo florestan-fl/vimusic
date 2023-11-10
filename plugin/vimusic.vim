@@ -20,7 +20,6 @@ try:
     if not path.startswith(os.sep):
         path = "."+os.sep+path
         path = os.path.abspath(path)
-        path = "file://"+path
 
     files = []
     # in preparation of reading a dir. (would need a Timeout to start the next
