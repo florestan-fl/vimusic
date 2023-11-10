@@ -5,7 +5,7 @@ import vim
 import os
 from urllib.parse import urlparse
 sys.path.append('/home/florestan/.vim/bundle/vimusic')
-import tools.shell_player as player
+from tools.audio_manager import AudioManager
 
 try:
     path = vim.eval("a:path")
@@ -18,7 +18,10 @@ try:
         path = urlparse(path).geturl()
     if (not path.endswith('.mp3')) and (not path.endswith('.ogg')):
         exit()
-    player.play(path)
+    audio_manager = AudioManager()
+    audio_manager.play(path)
+    print(audio_manager, type(audio_manager))
+    vim.command("let s:audio_manager = '%s'"% audio_manager)
 
 except Exception as e:
     print(e)
@@ -26,25 +29,31 @@ except Exception as e:
 EOF
 endfunction
 
+command! -complete=file -nargs=1 VimPlay :call vimusic#Play(<q-args>)
+
 function! vimusic#Stop()
-    python3 << EOF
+if exists("s:audio_manager")
+        python3 << EOF
 
 import vim
 import os
 sys.path.append('/home/florestan/.vim/bundle/vimusic')
-import tools.shell_player as player
+from tools.audio_manager import AudioManager
 
 try:
-    player.stop()
-
+    audio_manager = vim.eval("s:audio_manager")
+    obj_audio_manager = eval(audio_manager)
+    print(obj_audio_manager, type(obj_audio_manager))
+    #audio_manager.stop()
 except Exception as e:
     print(e)
-
 EOF
+else
+    echo "Music is not playing."
+endif
 endfunction
 
 command! -nargs=0 VimStop :call vimusic#Stop()
-command! -complete=file -nargs=1 VimPlay :call vimusic#Play(<q-args>)
 
 function! vimusic#Skip()
     python << EOF
