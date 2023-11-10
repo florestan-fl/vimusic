@@ -9,7 +9,7 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame.mixer as mixer
 import pygame.time
 
-audio_extensions = [".mp3", ".ogg", ".wav", ".flac", ".aac"]    
+audio_extensions = [".mp3", ".ogg", ".wav", ".flac", ".aac"]
 def check_audio(path):
     if not any(path.lower().endswith(ext) for ext in audio_extensions):
         raise ValueError("File format not handled. Extensions handled : " + str(audio_extensions))
@@ -23,7 +23,7 @@ try:
 
     files = []
     # in preparation of reading a dir. (would need a Timeout to start the next
-    # music
+    # music)
     """
     if os.path.isdir(path):
         files = os.listdir(path)
@@ -40,10 +40,11 @@ try:
     signal.signal(signal.SIGURG, lambda *_: mixer.unpause())
     signal.signal(signal.SIGALRM, lambda *_: print('Currently playing ' + path))
 
-    if (files == []): # directory of file, store in the same list
+    if (files == []): # directory of simple file, store all files in the same list
         files.append(path)
 
     for file in files:
+        check_audio(file)
         if not mixer:
             mixer.init()
         audio = mixer.Sound(file)
