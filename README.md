@@ -11,3 +11,6 @@ If you are unsing Bundle, insert the following line in your `.vimrc`:
 * `:PauseVimusic`
 * `:ResumeVimusic`
 * `:StopVimusic`
+
+# Requirements
+You can find the requirements in `autoload/vimusic.vim`
