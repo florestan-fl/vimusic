@@ -7,6 +7,12 @@ import signal
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame.mixer as mixer
+import pygame.time
+
+audio_extensions = [".mp3", ".ogg", ".wav", ".flac", ".aac"]    
+def check_audio(path):
+    if not any(path.lower().endswith(ext) for ext in audio_extensions):
+        raise ValueError("File format not handled. Extensions handled : " + str(audio_extensions))
 
 pid_file_path = "/tmp/vimusic_pid.txt"
 try:
@@ -15,21 +21,34 @@ try:
         path = "."+os.sep+path
         path = os.path.abspath(path)
         path = "file://"+path
-    audio_extensions = [".mp3", ".ogg", ".wav", ".flac", ".aac"]    
-    if not any(path.lower().endswith(ext) for ext in audio_extensions):
-        raise ValueError("File format not handled. Extensions handled : " + str(audio_extensions))
+
+    files = []
+    # in preparation of reading a dir. (would need a Timeout to start the next
+    # music
+    """
+    if os.path.isdir(path):
+        files = os.listdir(path)
+    print(str(files))
+    files = [path + os.sep + file for file in files]
+    """
+
+    with open(pid_file_path, "w") as pid_file:
+        pid_file.write(str(os.getpid()))
 
     mixer.init()
     signal.signal(signal.SIGINT, lambda *_: mixer.stop())
     signal.signal(signal.SIGBUS, lambda *_: mixer.pause())
     signal.signal(signal.SIGURG, lambda *_: mixer.unpause())
-    with open(pid_file_path, "w") as pid_file:
-        pid_file.write(str(os.getpid()))
+    signal.signal(signal.SIGALRM, lambda *_: print('Currently playing ' + path))
 
-    if not mixer:
-        mixer.init()
-    audio = mixer.Sound(path)
-    audio.play()
+    if (files == []): # directory of file, store in the same list
+        files.append(path)
+
+    for file in files:
+        if not mixer:
+            mixer.init()
+        audio = mixer.Sound(file)
+        audio.play()
 
 except Exception as e:
     print(e)
@@ -97,24 +116,12 @@ endfunction
 
 command! -nargs=0 ResumeVimusic :call vimusic#Unpause()
 
-function! vimusic#SwapPause()
+function! vimusic#Playing()
     python3 << EOF
 
 import vim
 import os
 
-try:
-    os.system('''ps -Af | grep shell_player | grep pid_%s | grep -v grep | awk '{print $2}' | xargs kill -s SIGALRM '''%( str(os.getpid()) ))
-except Exception as e:
-    print e
-
-EOF
-endfunction
-
-function! vimusic#Skip()
-    python3 << EOF
-
-# FIXME
 import vim
 import os
 import signal
@@ -122,45 +129,11 @@ pid_file_path = "/tmp/vimusic_pid.txt"
 if os.path.exists(pid_file_path):
     with open(pid_file_path, "r") as pid_file:
         pid = int(pid_file.read())
-    os.kill(pid, signal.SIGINT)
-    os.remove(pid_file_path)
+    os.kill(pid, signal.SIGALRM)
 else:
     print("No PID file found. Is the music currently playing?")
 
 EOF
 endfunction
 
-function! vimusic#Playing()
-    python3 << EOF
-
-import vim
-import os
-
-try:
-    readme = vim.eval("g:vundle_readme")
-    exe_path = os.sep.join( readme.split(os.sep)[0:-2] +
-                            ["vimusic", "tools", "meta_extract.py"]
-                           )
-    player = exe_path if os.path.exists(exe_path) else "gst"
-    if player == "gst":
-        os.system("""ps -Af | grep shell_player | grep -v grep | awk '{var = $10" "$11" "$12" "$13" "$14" "$15" "$16" "$17" "$18" "$19" "$20" "$21" "$22; split(var, b, "//"); split(b[2],a,"fakeval="); print a[1]}' > /tmp/lname""")
-        with open("/tmp/lname") as f:
-            data = f.read().replace("\n","").replace("\r","")
-            print 'Playing now:',data
-    else:
-        os.system(""" ps -Af | grep shell_player | grep -v grep | grep %s > /tmp/lname"""%(str( os.getpid() )))
-        with open("/tmp/lname") as f:
-            filePath = f.read().split("tools/shell_player.py ")[1].split(" fakeval=pid")[0].replace("//","/")
-            filePath = filePath.replace("'", """'"'"'""")
-            os.system(""" %s '%s' > /tmp/lnamef"""%(player, filePath))
-            with open("/tmp/lnamef") as g:
-                data = g.read().replace("\n","").replace("\r","")
-                print 'Playing now:',data
-except Exception as e:
-    print e
-
-EOF
-endfunction
-
-
-
+command! -nargs=0 CurrentVimusic :call vimusic#Playing()
