@@ -5,53 +5,16 @@ import vim
 import os
 import signal
 
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
-import pygame.mixer as mixer
-import pygame.time
-
-audio_extensions = [".mp3", ".ogg", ".wav", ".flac", ".aac"]
-def check_audio(path):
-    if not any(path.lower().endswith(ext) for ext in audio_extensions):
-        raise ValueError("File format not handled. Extensions handled : " + str(audio_extensions))
+from pydub import AudioSegment
+from pydub.playback import play
 
 pid_file_path = "/tmp/vimusic_pid.txt"
-try:
-    path = vim.eval("a:path")
-    if not path.startswith(os.sep):
-        path = "."+os.sep+path
-        path = os.path.abspath(path)
+with open(pid_file_path, "w") as pid_file:
+    pid_file.write(str(os.getpid()))
 
-    files = []
-    # in preparation of reading a dir. (would need a Timeout to start the next
-    # music)
-    """
-    if os.path.isdir(path):
-        files = os.listdir(path)
-    print(str(files))
-    files = [path + os.sep + file for file in files]
-    """
-
-    with open(pid_file_path, "w") as pid_file:
-        pid_file.write(str(os.getpid()))
-
-    mixer.init()
-    signal.signal(signal.SIGINT, lambda *_: mixer.stop())
-    signal.signal(signal.SIGBUS, lambda *_: mixer.pause())
-    signal.signal(signal.SIGURG, lambda *_: mixer.unpause())
-    signal.signal(signal.SIGALRM, lambda *_: print('Currently playing ' + path))
-
-    if (files == []): # directory of simple file, store all files in the same list
-        files.append(path)
-
-    for file in files:
-        check_audio(file)
-        if not mixer:
-            mixer.init()
-        audio = mixer.Sound(file)
-        audio.play()
-
-except Exception as e:
-    print(e)
+sound = AudioSegment.from_file("~/Music/Audio-LSD.mp3", format="mp3")
+play(sound)
+signal.signal(signal.SIGINT, lambda *_: play.stop())
 
 EOF
 endfunction
